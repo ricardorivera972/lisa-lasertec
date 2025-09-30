@@ -48,3 +48,4 @@ Abrí http://localhost:3000 y probá con tu contraseña.
 
 ## 🆘 Soporte
 Si algo falla en el deploy (CORS, env vars, etc.), revisá el panel de logs de Vercel.
+Prueba
