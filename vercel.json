@@ -1,8 +1,8 @@
 {
   "version": 2,
   "routes": [
-    { "src": "/api/chat", "methods": ["POST", "OPTIONS"], "dest": "api/chat.js" },
-    { "handle": "filesystem" },
-    { "src": "/(.*)", "dest": "/index.html" }
+    { "src": "/api/chat", "dest": "/api/chat.js" },
+    { "src": "/", "dest": "/index.html" }
   ]
-} Prueba
+}
+
