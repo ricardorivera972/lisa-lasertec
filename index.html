@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Lisa Lasertec — Acceso protegido</title>
+  <style>
+    :root{
+      --bg:#0b0c10; --panel:#111318; --accent:#15aabf; --accent2:#64dfdf;
+      --text:#e6f1ff; --muted:#98a2b3; --border:#23272f; --card:#0f1117;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family: ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
+      background: radial-gradient(1200px 800px at 80% -10%, rgba(21,170,191,0.12), transparent 60%),
+                  radial-gradient(800px 600px at -20% 110%, rgba(100,223,223,0.10), transparent 60%), var(--bg);
+      color:var(--text);
+    }
+    .wrap{max-width:960px;margin:40px auto;padding:0 16px}
+    .brand{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+    .logo{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));
+      display:flex;align-items:center;justify-content:center;color:#002b36;font-weight:900;font-size:20px;
+      box-shadow:0 8px 32px rgba(21,170,191,0.35);
+    }
+    h1{margin:0;font-size:26px}
+    .sub{color:var(--muted);font-size:14px;margin-top:4px}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.0));
+      border:1px solid var(--border); border-radius:18px; padding:20px;
+      box-shadow:0 10px 30px rgba(0,0,0,.25), inset 0 0 0 1px rgba(255,255,255,.03);
+    }
+    .hidden{display:none}
+    .input,.btn{width:100%;padding:14px 16px;border-radius:12px;border:1px solid var(--border);background:var(--card);
+      color:var(--text);font-size:15px;outline:none}
+    .btn{background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;font-weight:700;cursor:pointer}
+    .row{display:flex;gap:10px;align-items:center}
+    .muted{color:var(--muted)}
+    .chat{display:flex;flex-direction:column;gap:12px;height:55vh;overflow:auto;padding:8px;border-radius:12px;
+      border:1px dashed var(--border)
+    }
+    .msg{max-width:70%;padding:12px 14px;border-radius:14px;line-height:1.45;border:1px solid var(--border);background:var(--card)}
+    .me{align-self:flex-end;background:linear-gradient(135deg, rgba(21,170,191,0.15), rgba(100,223,223,0.12))}
+    .ai{align-self:flex-start}
+    .footer{display:flex;gap:10px;margin-top:12px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="brand">
+      <div class="logo">L</div>
+      <div>
+        <h1>Lisa Lasertec</h1>
+        <div class="sub">Interfaz protegida por contraseña</div>
+      </div>
+    </div>
+
+    <div id="login" class="card">
+      <h2 style="margin-top:0">Acceso</h2>
+      <p class="muted">Ingresá la contraseña para usar Lisa.</p>
+      <input id="pwd" class="input" type="password" placeholder="Contraseña" autocomplete="current-password">
+      <div class="row" style="margin-top:10px">
+        <button id="btnEnter" class="btn">Entrar</button>
+        <div id="status" class="muted"></div>
+      </div>
+      <div class="muted" style="margin-top:10px">Sugerida para tu proyecto: <code>LASER2025</code> (configurable en el servidor).</div>
+    </div>
+
+    <div id="app" class="card hidden">
+      <div class="row" style="justify-content:space-between">
+        <div class="muted">Acceso verificado</div>
+        <button id="btnLogout" class="btn" style="width:auto;padding:10px 14px">Salir</button>
+      </div>
+      <div style="height:12px"></div>
+      <div id="chat" class="chat">
+        <div class="msg ai">¡Hola! Ya podés hablar con Lisa. Escribí tu mensaje abajo.</div>
+      </div>
+      <div class="footer">
+        <input id="prompt" class="input" placeholder="Escribí tu consulta…" />
+        <button id="btnSend" class="btn">Enviar</button>
+      </div>
+      <div class="muted" style="margin-top:8px">Tu contraseña no se envía a OpenAI; sólo se usa para autorizar el acceso al endpoint propio.</div>
+    </div>
+  </div>
+
+  <script>
+    const login = document.getElementById('login');
+    const app = document.getElementById('app');
+    const pwd = document.getElementById('pwd');
+    const status = document.getElementById('status');
+    const btnEnter = document.getElementById('btnEnter');
+    const btnLogout = document.getElementById('btnLogout');
+    const chatEl = document.getElementById('chat');
+    const promptEl = document.getElementById('prompt');
+    const btnSend = document.getElementById('btnSend');
+
+    let passcode = "";
+
+    function unlocked(){ login.classList.add('hidden'); app.classList.remove('hidden'); }
+    function locked(){ app.classList.add('hidden'); login.classList.remove('hidden'); status.textContent=""; pwd.value=""; passcode=""; }
+    try{ if(localStorage.getItem('lisa_ok')==='1'){ passcode = localStorage.getItem('lisa_pass') || ""; unlocked(); } }catch{}
+
+    btnEnter.addEventListener('click', async () => {
+      const val = (pwd.value||"").trim();
+      if(!val){ status.textContent = "Ingresá la contraseña."; return; }
+      // Intento de verificación rápida (opcional): ping al backend que responde 200 si la pass es válida
+      status.textContent = "Verificando…";
+      try{
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-passcode': val },
+          body: JSON.stringify({ ping:true })
+        });
+        if(res.ok){
+          passcode = val;
+          try{ localStorage.setItem('lisa_ok','1'); localStorage.setItem('lisa_pass', passcode); }catch{}
+          unlocked();
+          status.textContent = "";
+        }else{
+          status.textContent = "Contraseña incorrecta.";
+        }
+      }catch(e){
+        status.textContent = "No se pudo verificar. Probá de nuevo.";
+      }
+    });
+
+    btnLogout.addEventListener('click', ()=>{
+      try{ localStorage.removeItem('lisa_ok'); localStorage.removeItem('lisa_pass'); }catch{}
+      locked();
+    });
+
+    function addMsg(text, who){
+      const div = document.createElement('div');
+      div.className = 'msg ' + (who==='me' ? 'me' : 'ai');
+      div.innerHTML = text.replace(/</g,"&lt;").replace(/>/g,"&gt;");
+      chatEl.appendChild(div);
+      chatEl.scrollTop = chatEl.scrollHeight;
+    }
+
+    btnSend.addEventListener('click', async ()=>{
+      const t = (promptEl.value||"").trim();
+      if(!t) return;
+      addMsg(t, 'me');
+      promptEl.value = "";
+      try{
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-passcode': passcode },
+          body: JSON.stringify({ messages: [{ role:'user', content: t }] })
+        });
+        const data = await res.json();
+        if(res.ok){
+          addMsg(data.reply || "(Sin respuesta)", 'ai');
+        }else{
+          addMsg("Error: " + (data.error||"No autorizado"), 'ai');
+        }
+      }catch(e){
+        addMsg("Error de red. Intentá más tarde.", 'ai');
+      }
+    });
+
+    promptEl.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ btnSend.click(); } });
+  </script>
+</body>
+</html>
